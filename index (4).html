@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>어부의 항해일지 · WeatherFishing</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+
+<style>
+  :root {
+    --bg:          #ffffff;
+    --bg-soft:     #f6f9fc;
+    --line:        #d9e2ec;
+    --line-strong: #b8c5d3;
+
+    --text:        #0a1929;
+    --text-mid:    #1a3550;
+    --text-soft:   #4a6480;
+
+    --accent:      #0d4f8b;
+    --accent-bright:#1565c0;
+    --rust:        #c2410c;
+    --gold:        #b8860b;
+    --teal:        #0e7c7b;
+    --sea:         #e3f2fd;
+    --sea-deep:    #bbdefb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    min-height: 100vh;
+    font-family: 'Pretendard', 'Gowun Batang', sans-serif;
+    color: var(--text);
+    background: var(--bg);
+    overflow-x: hidden;
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 0% 0%, rgba(13,79,139,0.04), transparent 50%),
+      radial-gradient(ellipse at 100% 100%, rgba(14,124,123,0.04), transparent 50%);
+    pointer-events: none; z-index: 0;
+  }
+
+  header {
+    position: relative; z-index: 3;
+    padding: 36px 56px 24px;
+    border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: flex-end;
+    flex-wrap: wrap; gap: 20px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 18px; }
+  .brand-mark {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 56px; font-weight: 700; font-style: italic;
+    color: var(--text); letter-spacing: -1px; line-height: 0.9;
+  }
+  .brand-mark::first-letter { color: var(--rust); }
+  .brand-sub {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 11px; color: var(--accent);
+    letter-spacing: 4px; padding-bottom: 6px;
+    font-weight: 600;
+  }
+  .meta-wrap { display: flex; align-items: center; gap: 18px; }
+  .live-btn {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 11px; letter-spacing: 2px; font-weight: 700;
+    padding: 10px 16px;
+    border: 1.5px solid var(--accent);
+    background: var(--bg);
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 2px;
+  }
+  .live-btn:hover { background: var(--accent); color: #fff; }
+  .live-btn.loading { background: var(--gold); color: #fff; border-color: var(--gold); pointer-events: none;}
+  .live-btn.success { background: var(--teal); color: #fff; border-color: var(--teal);}
+  .live-btn.error   { background: var(--rust); color: #fff; border-color: var(--rust);}
+
+  .meta { text-align: right; font-family: 'Pretendard', sans-serif; }
+  .meta .lat-lon {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 11px; color: var(--text-soft); letter-spacing: 2px;
+    font-weight: 600;
+  }
+  .meta .date { font-size: 18px; color: var(--text-mid); margin-top: 4px; font-weight: 600;}
+
+  main {
+    position: relative; z-index: 3;
+    display: grid; grid-template-columns: 1.1fr 1fr; gap: 0;
+    min-height: calc(100vh - 130px);
+  }
+
+  .map-panel {
+    padding: 40px 30px 40px 56px;
+    border-right: 1px solid var(--line);
+    position: relative;
+    background: var(--bg-soft);
+  }
+  .panel-title {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 11px; font-weight: 600; letter-spacing: 5px;
+    color: var(--accent); margin-bottom: 6px;
+  }
+  .panel-title-sub {
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 30px; font-weight: 600; color: var(--text);
+    margin-bottom: 24px; line-height: 1;
+  }
+
+  .map-frame {
+    position: relative; width: 100%;
+    aspect-ratio: 5 / 6; max-width: 560px; margin: 0 auto;
+  }
+  .map-frame svg {
+    width: 100%; height: 100%; display: block;
+    filter: drop-shadow(0 4px 14px rgba(13,25,41,0.10));
+  }
+
+  .spot { cursor: pointer; }
+  .spot circle.spot-outer {
+    transition: r 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), fill-opacity 0.3s ease;
+  }
+  .spot circle.spot-inner {
+    transition: r 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .spot:hover circle.spot-outer { r: 13; fill-opacity: 0.5; }
+  .spot:hover circle.spot-inner { r: 5.5; }
+  .spot.active circle.spot-outer { r: 16; fill: #c2410c; fill-opacity: 0.55; }
+  .spot.active circle.spot-inner { r: 6.5; fill: #c2410c; }
+  .spot text {
+    font-family: 'Gowun Batang', serif;
+    font-size: 12px; font-weight: 700;
+    fill: var(--text-mid); pointer-events: none;
+    transition: all 0.25s ease;
+    paint-order: stroke;
+    stroke: rgba(255,255,255,0.95);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+  .spot:hover text, .spot.active text {
+    fill: var(--text); font-size: 13.5px;
+  }
+  /* live data indicator on spot */
+  .spot.live circle.spot-inner {
+    fill: #0e7c7b !important;
+  }
+
+  .pulse-ring {
+    transform-origin: center; transform-box: fill-box;
+    animation: pulse 2.2s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%   { r: 6;  opacity: 0.85; }
+    100% { r: 28; opacity: 0; }
+  }
+
+  .compass-rose {
+    transform-origin: center; transform-box: fill-box;
+    animation: compassDrift 60s linear infinite;
+  }
+  @keyframes compassDrift {
+    from { transform: rotate(-4deg); }
+    to   { transform: rotate(4deg); }
+  }
+  .compass-needle {
+    transform-origin: center; transform-box: fill-box;
+    animation: needleSpin 90s linear infinite;
+  }
+  @keyframes needleSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .waveline {
+    stroke-dasharray: 6 4;
+    animation: waveDrift 8s linear infinite;
+  }
+  .waveline.fast { animation-duration: 5s; }
+  .waveline.slow { animation-duration: 12s; }
+  @keyframes waveDrift {
+    from { stroke-dashoffset: 0; }
+    to   { stroke-dashoffset: -40; }
+  }
+
+  .ship-group { animation: sail 28s ease-in-out infinite; }
+  @keyframes sail {
+    0%   { transform: translate(0, 0); }
+    25%  { transform: translate(40px, -10px); }
+    50%  { transform: translate(80px, 0); }
+    75%  { transform: translate(40px, 8px); }
+    100% { transform: translate(0, 0); }
+  }
+  .ship-bob {
+    animation: shipBob 3.5s ease-in-out infinite;
+    transform-origin: center; transform-box: fill-box;
+  }
+  @keyframes shipBob {
+    0%, 100% { transform: rotate(-2deg); }
+    50%      { transform: rotate(2deg); }
+  }
+
+  .gull-1 { animation: fly1 16s linear infinite; }
+  .gull-2 { animation: fly2 22s linear infinite; animation-delay: -7s; }
+  .gull-3 { animation: fly3 13s linear infinite; animation-delay: -3s; }
+  @keyframes fly1 {
+    0%   { transform: translate(-30px, 60px); opacity: 0; }
+    8%   { opacity: 0.7; }
+    92%  { opacity: 0.7; }
+    100% { transform: translate(540px, 30px); opacity: 0; }
+  }
+  @keyframes fly2 {
+    0%   { transform: translate(540px, 100px); opacity: 0; }
+    8%   { opacity: 0.65; }
+    92%  { opacity: 0.65; }
+    100% { transform: translate(-30px, 70px); opacity: 0; }
+  }
+  @keyframes fly3 {
+    0%   { transform: translate(-30px, 200px); opacity: 0; }
+    8%   { opacity: 0.7; }
+    92%  { opacity: 0.7; }
+    100% { transform: translate(540px, 240px); opacity: 0; }
+  }
+  .gull-wing {
+    animation: flap 0.6s ease-in-out infinite;
+    transform-origin: center; transform-box: fill-box;
+  }
+  @keyframes flap {
+    0%, 100% { transform: scaleY(1); }
+    50%      { transform: scaleY(0.35); }
+  }
+
+  .legend {
+    margin-top: 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 10px; letter-spacing: 2px; font-weight: 600;
+    color: var(--text-soft); padding: 0 8px;
+  }
+  .legend .scale { display: flex; align-items: center; gap: 6px; }
+  .legend .scale .bar {
+    display: inline-block; width: 60px; height: 1px; background: var(--text-soft);
+  }
+
+  .detail-panel { padding: 40px 56px 40px 40px; overflow-y: auto; background: var(--bg);}
+
+  .spot-header {
+    margin-bottom: 28px; padding-bottom: 18px;
+    border-bottom: 2px solid var(--text);
+    position: relative;
+  }
+  .spot-header::after {
+    content: ""; position: absolute; left: 0; bottom: -5px;
+    width: 40%; height: 1px; background: var(--text);
+  }
+  .spot-region {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 11px; letter-spacing: 4px; color: var(--accent);
+    margin-bottom: 8px; font-weight: 600;
+  }
+  .spot-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 64px; font-weight: 700; font-style: italic;
+    color: var(--text); line-height: 0.95; letter-spacing: -2px;
+  }
+  .spot-tag {
+    display: inline-block; margin-top: 10px;
+    padding: 4px 12px;
+    background: var(--text); color: var(--bg);
+    font-family: 'Pretendard', sans-serif;
+    font-size: 10px; letter-spacing: 3px; font-weight: 600;
+  }
+  .spot-tag.live {
+    background: var(--teal); margin-left: 6px;
+  }
+  .spot-tag.sample {
+    background: var(--gold); margin-left: 6px;
+  }
+
+  .weather-block {
+    display: grid; grid-template-columns: auto 1fr;
+    gap: 24px 32px; margin-bottom: 32px; padding: 28px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    position: relative;
+  }
+  .weather-block::before {
+    content: "OBSERVED";
+    position: absolute; top: -8px; left: 18px;
+    background: var(--bg); padding: 0 10px;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 9px; letter-spacing: 3px; color: var(--accent);
+    font-weight: 700;
+  }
+
+  .temp-big {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 92px; font-weight: 600; line-height: 0.85;
+    color: var(--text);
+  }
+  .temp-big sup {
+    font-size: 36px; font-weight: 500; color: var(--text-soft); margin-left: 4px;
+  }
+  .condition {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 18px; color: var(--text-mid); margin-top: 8px; font-weight: 600;
+  }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 22px; align-self: center; }
+  .stat { display: flex; flex-direction: column; gap: 3px; }
+  .stat-label {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 9px; letter-spacing: 2px; color: var(--accent);
+    font-weight: 700;
+  }
+  .stat-value {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 22px; color: var(--text); font-weight: 700;
+  }
+  .stat-value .unit {
+    font-size: 13px; color: var(--text-soft);
+    margin-left: 3px; font-weight: 500;
+  }
+
+  .alert {
+    margin-bottom: 28px; padding: 16px 20px;
+    border-left: 4px solid var(--rust);
+    background: #fff5f0;
+    font-family: 'Pretendard', sans-serif;
+    color: var(--rust);
+    display: flex; align-items: center; gap: 14px;
+    font-weight: 600; font-size: 15px;
+  }
+  .alert.calm {
+    border-left-color: var(--teal);
+    background: #f0fdfa; color: var(--teal);
+  }
+  .alert-icon {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 11px; letter-spacing: 2px; font-weight: 700;
+    font-style: normal;
+  }
+
+  .fishing-section { margin-top: 8px; }
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 30px; font-style: italic; font-weight: 700;
+    color: var(--text); margin-bottom: 4px;
+  }
+  .section-sub {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 10px; letter-spacing: 3px; font-weight: 600;
+    color: var(--accent); margin-bottom: 18px;
+  }
+
+  .fish-list { list-style: none; }
+  .fish-row {
+    display: grid; grid-template-columns: 38px 1fr auto auto;
+    align-items: center; gap: 16px; padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .fish-row:last-child { border-bottom: none; }
+
+  .fish-num {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 11px; color: var(--text-soft); letter-spacing: 2px;
+    font-weight: 700;
+  }
+  .fish-name {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 22px; font-weight: 700;
+    color: var(--text);
+  }
+  .fish-name .latin {
+    display: block; font-family: 'Pretendard', sans-serif;
+    font-size: 11px; font-style: italic; font-weight: 400;
+    color: var(--text-soft);
+    margin-top: 2px;
+  }
+  .fish-rating {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 18px; color: var(--gold); letter-spacing: 2px;
+    font-weight: 700;
+  }
+  .fish-rating .filled { color: var(--rust); }
+  .fish-rating .empty  { color: #d8d8d8; }
+  .fish-note {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 13px; font-weight: 500;
+    color: var(--text-mid); text-align: right;
+    max-width: 140px; line-height: 1.3;
+  }
+
+  .tide {
+    margin-top: 28px; padding: 20px 22px;
+    border: 1px solid var(--line);
+    background: var(--sea);
+    border-radius: 2px;
+  }
+  .tide-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .tide-title {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 17px; font-weight: 700; color: var(--text);
+  }
+  .tide-phase {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 10px; letter-spacing: 2px; color: var(--accent); font-weight: 700;
+  }
+  .tide-svg { width: 100%; height: 60px; }
+  .tide-wave {
+    stroke-dasharray: 4 3;
+    animation: tideFlow 6s linear infinite;
+  }
+  @keyframes tideFlow {
+    from { stroke-dashoffset: 0; }
+    to   { stroke-dashoffset: -28; }
+  }
+  .tide-times {
+    display: flex; justify-content: space-between; margin-top: 8px;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 10px; color: var(--text-mid); letter-spacing: 1px; font-weight: 600;
+  }
+
+  footer {
+    position: relative; z-index: 3; padding: 18px 56px;
+    border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 10px; letter-spacing: 2px; color: var(--text-soft);
+    font-weight: 600;
+  }
+
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    .map-panel { border-right: none; border-bottom: 1px solid var(--line); padding: 30px 24px; }
+    .detail-panel { padding: 30px 24px; }
+    header { padding: 24px; }
+    footer { padding: 14px 24px; flex-direction: column; gap: 6px; }
+    .brand-mark { font-size: 40px; }
+    .spot-name { font-size: 44px; }
+    .temp-big { font-size: 64px; }
+    .weather-block { grid-template-columns: 1fr; gap: 16px; }
+  }
+  @media (max-width: 480px) {
+    .spot-name { font-size: 36px; }
+    .panel-title-sub { font-size: 22px; }
+    .fish-row { grid-template-columns: 28px 1fr auto; }
+    .fish-note { display: none; }
+  }
+
+  .detail-panel > * {
+    animation: fadeUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  }
+  .spot-header     { animation-delay: 0.05s; }
+  .alert           { animation-delay: 0.10s; }
+  .weather-block   { animation-delay: 0.15s; }
+  .fishing-section { animation-delay: 0.20s; }
+  .tide            { animation-delay: 0.25s; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">어부의 항해일지</div>
+    <div class="brand-sub">FISHERMAN&apos;S LOG · EST. 2026</div>
+  </div>
+  <div class="meta-wrap">
+    <button class="live-btn" id="liveBtn" onclick="fetchAllLive()">⟳ 실시간 데이터 받기</button>
+    <div class="meta">
+      <div class="lat-lon" id="latlon">— · —</div>
+      <div class="date" id="dateline">—</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <section class="map-panel">
+    <div class="panel-title">CHART NO. 1</div>
+    <div class="panel-title-sub">한반도 관측 지점</div>
+
+    <div class="map-frame">
+      <svg viewBox="0 0 500 600" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="landGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%"   stop-color="#fdfcf7"/>
+            <stop offset="100%" stop-color="#f0e9d6"/>
+          </linearGradient>
+          <linearGradient id="seaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%"   stop-color="#e8f4fb"/>
+            <stop offset="100%" stop-color="#c8e3f5"/>
+          </linearGradient>
+        </defs>
+
+        <rect width="500" height="600" fill="url(#seaGrad)"/>
+
+        <g fill="none" stroke="#1565c0" stroke-width="0.7" opacity="0.35">
+          <path class="waveline slow" d="M 30,80   Q 70,75   110,82  T 200,80"/>
+          <path class="waveline"      d="M 30,470  Q 70,465  110,472 T 200,470"/>
+          <path class="waveline fast" d="M 380,300 Q 420,295 450,302 T 490,300"/>
+          <path class="waveline slow" d="M 380,360 Q 420,355 450,362 T 490,360"/>
+          <path class="waveline"      d="M 30,540  Q 70,535  110,542 T 220,540"/>
+          <path class="waveline fast" d="M 280,560 Q 320,555 360,562 T 460,560"/>
+          <path class="waveline slow" d="M 30,250  Q 70,245   90,250 T 130,248"/>
+          <path class="waveline"      d="M 380,440 Q 420,435 450,442 T 490,440"/>
+        </g>
+
+        <g class="ship-group" transform="translate(420, 200)">
+          <g class="ship-bob">
+            <path d="M -14,4 Q -10,9 0,9 Q 10,9 14,4 Z" fill="#5a3818" stroke="#2d1b08" stroke-width="0.6"/>
+            <line x1="0" y1="4" x2="0" y2="-16" stroke="#2d1b08" stroke-width="0.8"/>
+            <path d="M 0,-15 Q 7,-10 7,-2 L 0,-2 Z" fill="#ffffff" stroke="#2d1b08" stroke-width="0.4"/>
+            <path d="M 0,-15 Q -5,-11 -5,-3 L 0,-3 Z" fill="#f0e9d6" stroke="#2d1b08" stroke-width="0.4"/>
+          </g>
+        </g>
+
+        <g class="ship-group" style="animation-duration: 35s;" transform="translate(70, 380)">
+          <g class="ship-bob" style="animation-duration: 4.2s;">
+            <path d="M -10,3 Q -7,7 0,7 Q 7,7 10,3 Z" fill="#5a3818" stroke="#2d1b08" stroke-width="0.5"/>
+            <line x1="0" y1="3" x2="0" y2="-12" stroke="#2d1b08" stroke-width="0.7"/>
+            <path d="M 0,-11 Q 5,-7 5,-1 L 0,-1 Z" fill="#ffffff" stroke="#2d1b08" stroke-width="0.3"/>
+          </g>
+        </g>
+
+        <g fill="none" stroke="#0d4f8b" stroke-width="1.1" opacity="0.7">
+          <g class="gull-1">
+            <g class="gull-wing">
+              <path d="M 0,0 Q 3,-3 6,0 M 6,0 Q 9,-3 12,0" />
+            </g>
+          </g>
+          <g class="gull-2">
+            <g class="gull-wing">
+              <path d="M 0,0 Q 2.5,-2.5 5,0 M 5,0 Q 7.5,-2.5 10,0" />
+            </g>
+          </g>
+          <g class="gull-3">
+            <g class="gull-wing">
+              <path d="M 0,0 Q 3,-3 6,0 M 6,0 Q 9,-3 12,0" />
+            </g>
+          </g>
+        </g>
+
+        <path d="M 188.8,96.5 C 185.8,98.1 175.0,99.7 170.8,106.0 C 166.6,112.3 163.0,125.7 163.6,134.4 C 164.2,143.1 171.4,150.1 174.4,158.0 C 177.4,165.9 183.4,175.4 181.6,181.7 C 179.8,188.0 168.4,189.6 163.6,195.9 C 158.8,202.2 150.4,214.0 152.8,219.6 C 155.2,225.1 173.2,223.5 178.0,229.0 C 182.8,234.5 180.4,244.0 181.6,252.7 C 182.8,261.4 185.8,274.0 185.2,281.1 C 184.6,288.2 180.4,289.7 178.0,295.3 C 175.6,300.8 170.8,307.9 170.8,314.2 C 170.8,320.5 179.2,326.0 178.0,333.1 C 176.8,340.2 167.2,348.1 163.6,356.8 C 160.0,365.5 157.6,376.5 156.4,385.2 C 155.2,393.9 154.0,401.0 156.4,408.8 C 158.8,416.7 164.8,427.0 170.8,432.5 C 176.8,438.0 185.2,442.8 192.4,442.0 C 199.6,441.2 206.8,431.7 214.0,427.8 C 221.2,423.8 227.8,423.0 235.6,418.3 C 243.4,413.6 251.8,405.7 260.8,399.4 C 269.8,393.1 280.6,381.2 289.6,380.4 C 298.6,379.7 306.4,394.6 314.8,394.6 C 323.2,394.6 331.6,385.2 340.0,380.4 C 348.4,375.7 359.8,368.6 365.2,366.2 C 370.6,363.9 370.0,369.4 372.4,366.2 C 374.8,363.1 377.2,354.4 379.6,347.3 C 382.0,340.2 383.8,332.3 386.8,323.7 C 389.8,315.0 395.8,303.9 397.6,295.3 C 399.4,286.6 398.8,280.3 397.6,271.6 C 396.4,262.9 391.6,252.7 390.4,243.2 C 389.2,233.8 391.0,225.9 390.4,214.8 C 389.8,203.8 389.8,188.8 386.8,177.0 C 383.8,165.1 377.8,154.9 372.4,143.8 C 367.0,132.8 359.8,119.4 354.4,110.7 C 349.0,102.0 345.4,99.7 340.0,91.8 C 334.6,83.9 327.4,68.1 322.0,63.4 C 316.6,58.7 316.0,61.8 307.6,63.4 C 299.2,65.0 284.8,69.7 271.6,72.9 C 258.4,76.0 240.4,79.2 228.4,82.3 C 216.4,85.5 206.2,89.4 199.6,91.8 C 193.0,94.2 190.6,95.7 188.8,96.5 Z"
+              fill="url(#landGrad)" stroke="#0d4f8b" stroke-width="1.6" stroke-linejoin="round"/>
+
+        <ellipse cx="178" cy="519" rx="26" ry="13" fill="url(#landGrad)" stroke="#0d4f8b" stroke-width="1.4"/>
+
+        <circle cx="430" cy="139" r="4.5" fill="url(#landGrad)" stroke="#0d4f8b" stroke-width="1"/>
+        <text x="438" y="142" font-family="'Cormorant Garamond',serif" font-size="10" font-style="italic" font-weight="700" fill="#1a3550">울릉</text>
+        <circle cx="468" cy="142" r="2" fill="#0d4f8b"/>
+        <text x="474" y="146" font-family="'Cormorant Garamond',serif" font-size="9" font-style="italic" font-weight="700" fill="#1a3550">독도</text>
+
+        <g class="compass-rose" transform="translate(60,100)">
+          <circle r="24" fill="rgba(255,255,255,0.7)" stroke="#0d4f8b" stroke-width="1"/>
+          <circle r="16" fill="none" stroke="#0d4f8b" stroke-width="0.5" opacity="0.5"/>
+          <g class="compass-needle">
+            <path d="M 0,-22 L 4,0 L 0,22 L -4,0 Z" fill="#0d4f8b" opacity="0.85"/>
+            <path d="M -22,0 L 0,4 L 22,0 L 0,-4 Z" fill="#0d4f8b" opacity="0.45"/>
+            <circle r="2.5" fill="#c2410c"/>
+          </g>
+          <text y="-28" text-anchor="middle" font-family="'Pretendard',sans-serif" font-size="11" font-weight="700" fill="#0d4f8b">N</text>
+          <text y="35" text-anchor="middle" font-family="'Pretendard',sans-serif" font-size="10" font-weight="700" fill="#0d4f8b">S</text>
+          <text x="-30" y="3" text-anchor="middle" font-family="'Pretendard',sans-serif" font-size="10" font-weight="700" fill="#0d4f8b">W</text>
+          <text x="30" y="3" text-anchor="middle" font-family="'Pretendard',sans-serif" font-size="10" font-weight="700" fill="#0d4f8b">E</text>
+        </g>
+
+        <g id="spots"></g>
+        <g id="pulselayer"></g>
+      </svg>
+    </div>
+
+    <div class="legend">
+      <span>SCALE 1 : 4,200,000</span>
+      <span class="scale"><span class="bar"></span>200 km</span>
+      <span>WGS84</span>
+    </div>
+  </section>
+
+  <section class="detail-panel" id="detail"></section>
+
+</main>
+
+<footer>
+  <span>WeatherFishing · 캡스톤 디자인 2026</span>
+  <span id="status">DATA · 샘플</span>
+  <span>기상청 · 공공데이터포털</span>
+</footer>
+
+<script>
+/* ==========================================================================
+   설정
+   ========================================================================== */
+const KMA_KEY = 'ffd20816ff172027eae0d342001024f18d649601c1bc12ba6f9db28ab2ade964';
+const KMA_BASE = 'https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0';
+const KMA_ALERT_BASE = 'https://apis.data.go.kr/1360000/WthrWrnInfoService';
+const KHOA_TEMP_BASE = 'https://apis.data.go.kr/1192136/surveyWaterTemp';
+
+/* 조위관측소 코드 매핑 (해양조사원 공식 명세 기준)
+   각 지점에서 가장 가까운 조위관측소 사용 */
+const TIDE_STATION = {
+  busan:     'DT_0005',  // 부산
+  incheon:   'DT_0001',  // 인천
+  jeju:      'DT_0004',  // 제주
+  sokcho:    'DT_0012',  // 속초
+  pohang:    'DT_0091',  // 포항
+  yeosu:     'DT_0016',  // 여수
+  gunsan:    'DT_0018',  // 군산
+  tongyeong: 'DT_0014',  // 통영
+  yeongdeok: 'DT_0011',  // 후포 (영덕에서 가장 가까운 관측소)
+  gangneung: 'DT_0006',  // 묵호 (강릉 인근)
+  yeongheung:'DT_0043',  // 영흥도
+};
+
+/* 특보 지역 코드 (기상청 표준)
+   stnId 가 아니라 지역 매칭은 응답 텍스트로 함 */
+const ALERT_REGIONS = {
+  sokcho: '강원도', gangneung: '강원도',
+  yeongdeok: '경상북도', pohang: '경상북도',
+  busan: '부산광역시',
+  tongyeong: '경상남도', yeongheung: '인천광역시',
+  yeosu: '전라남도',
+  gunsan: '전북특별자치도',
+  incheon: '인천광역시',
+  jeju: '제주특별자치도',
+  seoul: '서울특별시',
+  daejeon: '대전광역시', gwangju: '광주광역시', daegu: '대구광역시',
+};
+
+/* ==========================================================================
+   지점 데이터
+   ========================================================================== */
+const SPOTS = [
+  { id:'sokcho',   name:'속초',    region:'강원 영동 · 동해',  tag:'PORT',     x:328, y:72,  lat:38.21, lon:128.59, kind:'sea' },
+  { id:'gangneung',name:'강릉',    region:'강원 영동',         tag:'COAST',    x:351, y:115, lat:37.75, lon:128.90, kind:'sea' },
+  { id:'yeongdeok',name:'영덕',    region:'경북 동해안',       tag:'PORT',     x:384, y:242, lat:36.41, lon:129.36, kind:'sea' },
+  { id:'pohang',   name:'포항',    region:'경북 동해안',       tag:'PORT',     x:383, y:278, lat:36.03, lon:129.35, kind:'sea' },
+  { id:'busan',    name:'부산',    region:'동남 해역',         tag:'METRO',    x:368, y:362, lat:35.18, lon:129.07, kind:'sea' },
+  { id:'tongyeong',name:'통영',    region:'한려수도',          tag:'ARCHIPEL', x:317, y:403, lat:34.85, lon:128.43, kind:'sea' },
+  { id:'yeosu',    name:'여수',    region:'남해안',            tag:'PORT',     x:262, y:410, lat:34.76, lon:127.66, kind:'sea' },
+  { id:'gunsan',   name:'군산',    region:'서해안',            tag:'PORT',     x:152, y:288, lat:35.97, lon:126.71, kind:'sea' },
+  { id:'incheon',  name:'인천',    region:'경기만',            tag:'METRO',    x:148, y:148, lat:37.45, lon:126.70, kind:'sea' },
+  { id:'yeongheung',name:'영흥도', region:'경기만 · 외해',     tag:'ISLAND',   x:135, y:170, lat:37.24, lon:126.49, kind:'sea' },
+  { id:'jeju',     name:'제주',    region:'제주 해역',         tag:'ISLAND',   x:178, y:519, lat:33.49, lon:126.50, kind:'sea' },
+  { id:'seoul',    name:'서울',    region:'수도권',            tag:'METRO',    x:212, y:133, lat:37.56, lon:126.97, kind:'inland' },
+  { id:'daejeon',  name:'대전',    region:'중부 내륙',         tag:'INLAND',   x:241, y:248, lat:36.35, lon:127.38, kind:'inland' },
+  { id:'gwangju',  name:'광주',    region:'호남 내륙',         tag:'INLAND',   x:225, y:361, lat:35.16, lon:126.85, kind:'inland' },
+  { id:'daegu',    name:'대구',    region:'영남 내륙',         tag:'INLAND',   x:329, y:293, lat:35.87, lon:128.60, kind:'inland' },
+];
+
+const FISH = {
+  flounder: { name:'광어',       latin:'Paralichthys olivaceus' },
+  rockfish: { name:'우럭',       latin:'Sebastes schlegelii' },
+  hairtail: { name:'갈치',       latin:'Trichiurus lepturus' },
+  squid:    { name:'무늬오징어', latin:'Sepioteuthis lessoniana' },
+  bream:    { name:'감성돔',     latin:'Acanthopagrus schlegelii' },
+};
+
+/* 샘플 (API 실패 시 폴백) */
+const SAMPLE = {
+  sokcho:    { temp:14.2, cond:'맑음', wind:'북동 2.4', wave:0.7, water:13.4, hum:62, pressure:1018, alert:null,
+               fish:[['rockfish',5,'수온·파고 모두 양호'],['flounder',4,'들물 시각 ★'],['squid',3,'야간 권장']] },
+  gangneung: { temp:15.0, cond:'구름 조금', wind:'북 3.1', wave:1.0, water:14.0, hum:58, pressure:1019, alert:null, fish:[]},
+  yeongdeok: { temp:13.8, cond:'흐림', wind:'북 4.5', wave:1.4, water:12.5, hum:70, pressure:1015, alert:null, fish:[]},
+  pohang:    { temp:14.6, cond:'맑음', wind:'동 3.0', wave:0.9, water:13.8, hum:60, pressure:1020, alert:null, fish:[]},
+  busan:     { temp:16.3, cond:'맑음', wind:'남동 2.8', wave:0.8, water:15.2, hum:64, pressure:1021, alert:null, fish:[]},
+  tongyeong: { temp:16.0, cond:'흐림', wind:'남 3.4', wave:1.1, water:15.0, hum:72, pressure:1017, alert:null, fish:[]},
+  yeosu:     { temp:16.5, cond:'맑음', wind:'남서 2.2', wave:0.6, water:15.5, hum:68, pressure:1020, alert:null, fish:[]},
+  gunsan:    { temp:14.0, cond:'흐림', wind:'서 4.8', wave:1.6, water:12.8, hum:80, pressure:1014, alert:'풍랑주의보', fish:[]},
+  incheon:   { temp:13.5, cond:'구름 많음', wind:'서 4.2', wave:1.5, water:12.4, hum:74, pressure:1015, alert:null, fish:[]},
+  yeongheung:{ temp:13.0, cond:'구름 많음', wind:'북서 4.6', wave:1.7, water:12.0, hum:76, pressure:1014, alert:'강풍주의보', fish:[]},
+  jeju:      { temp:18.4, cond:'맑음', wind:'남 3.6', wave:1.0, water:17.2, hum:65, pressure:1019, alert:null, fish:[]},
+  seoul:     { temp:13.0, cond:'구름 조금', wind:'서 1.8', wave:null, water:null, hum:55, pressure:1020, alert:null, fish:[] },
+  daejeon:   { temp:12.8, cond:'맑음', wind:'북서 1.5', wave:null, water:null, hum:50, pressure:1021, alert:null, fish:[] },
+  gwangju:   { temp:14.2, cond:'맑음', wind:'남 1.9', wave:null, water:null, hum:58, pressure:1019, alert:null, fish:[] },
+  daegu:     { temp:14.8, cond:'맑음', wind:'동 2.1', wave:null, water:null, hum:48, pressure:1020, alert:null, fish:[] },
+};
+
+/* 실시간 데이터 저장소 (받아오면 SAMPLE 대체) */
+const LIVE = {};   // id -> data
+const LIVE_OK = {}; // id -> true if successfully fetched
+
+/* ==========================================================================
+   기상청 격자좌표 변환 (위경도 → nx, ny)
+   기상청 공식 변환식 (Lambert Conformal Conic)
+   ========================================================================== */
+function latLonToGrid(lat, lon) {
+  const RE = 6371.00877;     // 지구 반경 (km)
+  const GRID = 5.0;          // 격자 간격 (km)
+  const SLAT1 = 30.0;        // 표준위도 1
+  const SLAT2 = 60.0;        // 표준위도 2
+  const OLON = 126.0;        // 기준점 경도
+  const OLAT = 38.0;         // 기준점 위도
+  const XO = 43;             // 기준점 X좌표
+  const YO = 136;            // 기준점 Y좌표
+
+  const DEGRAD = Math.PI / 180.0;
+  const re = RE / GRID;
+  const slat1 = SLAT1 * DEGRAD;
+  const slat2 = SLAT2 * DEGRAD;
+  const olon = OLON * DEGRAD;
+  const olat = OLAT * DEGRAD;
+
+  let sn = Math.tan(Math.PI * 0.25 + slat2 * 0.5) / Math.tan(Math.PI * 0.25 + slat1 * 0.5);
+  sn = Math.log(Math.cos(slat1) / Math.cos(slat2)) / Math.log(sn);
+  let sf = Math.tan(Math.PI * 0.25 + slat1 * 0.5);
+  sf = Math.pow(sf, sn) * Math.cos(slat1) / sn;
+  let ro = Math.tan(Math.PI * 0.25 + olat * 0.5);
+  ro = re * sf / Math.pow(ro, sn);
+
+  let ra = Math.tan(Math.PI * 0.25 + lat * DEGRAD * 0.5);
+  ra = re * sf / Math.pow(ra, sn);
+  let theta = lon * DEGRAD - olon;
+  if (theta > Math.PI)  theta -= 2.0 * Math.PI;
+  if (theta < -Math.PI) theta += 2.0 * Math.PI;
+  theta *= sn;
+
+  const nx = Math.floor(ra * Math.sin(theta) + XO + 0.5);
+  const ny = Math.floor(ro - ra * Math.cos(theta) + YO + 0.5);
+  return { nx, ny };
+}
+
+/* ==========================================================================
+   기상청 단기예보 API 호출
+   - getUltraSrtNcst: 초단기실황 (현재 기온, 습도, 풍속 등)
+   - 매시각 발표, 40분 이후 조회 가능
+   ========================================================================== */
+function getBaseTime() {
+  // 초단기실황은 매시 정각 발표, 약 10분 후부터 조회 가능
+  const now = new Date();
+  // 안전하게 40분 이전이면 1시간 빼기
+  if (now.getMinutes() < 40) {
+    now.setHours(now.getHours() - 1);
+  }
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  return {
+    baseDate: `${yyyy}${mm}${dd}`,
+    baseTime: `${hh}00`,
+  };
+}
+
+async function fetchUltraSrtNcst(lat, lon) {
+  const { nx, ny } = latLonToGrid(lat, lon);
+  const { baseDate, baseTime } = getBaseTime();
+
+  const params = new URLSearchParams({
+    serviceKey: KMA_KEY,
+    pageNo: '1',
+    numOfRows: '100',
+    dataType: 'JSON',
+    base_date: baseDate,
+    base_time: baseTime,
+    nx: String(nx),
+    ny: String(ny),
+  });
+
+  const url = `${KMA_BASE}/getUltraSrtNcst?${params.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+
+  // 가끔 XML 에러 응답이 옴 — 미리 체크
+  if (text.trim().startsWith('<')) {
+    throw new Error('XML 에러 응답 (키 확인 필요): ' + text.substring(0, 200));
+  }
+
+  const json = JSON.parse(text);
+  const header = json?.response?.header;
+  if (header?.resultCode !== '00') {
+    throw new Error(`API 에러 [${header?.resultCode}] ${header?.resultMsg}`);
+  }
+
+  const items = json?.response?.body?.items?.item || [];
+  // category별로 정리
+  const out = {};
+  for (const it of items) {
+    out[it.category] = parseFloat(it.obsrValue);
+  }
+  // 카테고리: T1H(기온°C), RN1(1시간강수mm), UUU(동서풍), VVV(남북풍),
+  //          REH(습도%), PTY(강수형태), VEC(풍향°), WSD(풍속m/s)
+  return out;
+}
+
+/* ==========================================================================
+   단기예보 (파고 WAV, 하늘상태 SKY 포함)
+   - getVilageFcst: 02/05/08/11/14/17/20/23시 발표
+   ========================================================================== */
+function getVilageBaseTime() {
+  const now = new Date();
+  // 발표 시각: 02 05 08 11 14 17 20 23 시. 약 10분 후부터 조회 가능.
+  const slots = [2, 5, 8, 11, 14, 17, 20, 23];
+  let h = now.getHours();
+  const m = now.getMinutes();
+  // 안전하게 해당 시각의 30분 이후만 사용
+  if (m < 30) h -= 1;
+  let chosen = 23;
+  let dayOffset = 0;
+  for (let i = slots.length - 1; i >= 0; i--) {
+    if (slots[i] <= h) { chosen = slots[i]; break; }
+    if (i === 0) { chosen = 23; dayOffset = -1; }
+  }
+  const d = new Date(now);
+  d.setDate(d.getDate() + dayOffset);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return {
+    baseDate: `${yyyy}${mm}${dd}`,
+    baseTime: String(chosen).padStart(2, '0') + '00',
+  };
+}
+
+async function fetchVilageFcst(lat, lon) {
+  const { nx, ny } = latLonToGrid(lat, lon);
+  const { baseDate, baseTime } = getVilageBaseTime();
+
+  const params = new URLSearchParams({
+    serviceKey: KMA_KEY,
+    pageNo: '1',
+    numOfRows: '300',  // 여러 시각 + 카테고리라 넉넉히
+    dataType: 'JSON',
+    base_date: baseDate,
+    base_time: baseTime,
+    nx: String(nx),
+    ny: String(ny),
+  });
+
+  const url = `${KMA_BASE}/getVilageFcst?${params.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const text = await res.text();
+  if (text.trim().startsWith('<')) {
+    throw new Error('XML 에러: ' + text.substring(0, 150));
+  }
+  const json = JSON.parse(text);
+  const header = json?.response?.header;
+  if (header?.resultCode !== '00') {
+    throw new Error(`단기예보 [${header?.resultCode}] ${header?.resultMsg}`);
+  }
+  const items = json?.response?.body?.items?.item || [];
+
+  // 가장 가까운 미래 시각의 값을 추출
+  const now = new Date();
+  const nowKey = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}${String(now.getHours()).padStart(2,'0')}00`;
+
+  const byCat = {};   // category -> {fcstDateTime: value}
+  for (const it of items) {
+    const key = it.fcstDate + it.fcstTime;
+    if (!byCat[it.category]) byCat[it.category] = [];
+    byCat[it.category].push({ key, val: it.fcstValue });
+  }
+
+  // 각 카테고리에서 nowKey 와 가장 가까운(이상) 항목 선택
+  const out = {};
+  for (const cat of Object.keys(byCat)) {
+    const list = byCat[cat].sort((a,b) => a.key.localeCompare(b.key));
+    let picked = list.find(x => x.key >= nowKey) || list[list.length - 1];
+    if (picked) {
+      const v = parseFloat(picked.val);
+      out[cat] = isNaN(v) ? picked.val : v;
+    }
+  }
+  // 카테고리: SKY(하늘1맑음3구름많음4흐림), POP(강수확률%), WAV(파고m), TMP(기온), ...
+  return out;
+}
+
+/* ==========================================================================
+   수온 (해양조사원 조위관측소 실측)
+   명세: serviceKey, type, obsCode, reqDate, min, pageNo, numOfRows
+   응답: items.item[].wtem (수온, ℃), obsrvnDt (관측일시)
+   ========================================================================== */
+async function fetchWaterTemp(stationCode) {
+  if (!stationCode) return null;
+
+  // 오늘 날짜 (YYYYMMDD)
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  const dd = String(now.getDate()).padStart(2,'0');
+  const today = `${yyyy}${mm}${dd}`;
+
+  const params = new URLSearchParams({
+    serviceKey: KMA_KEY,
+    type: 'json',
+    obsCode: stationCode,
+    reqDate: today,
+    min: '60',          // 60분 간격
+    pageNo: '1',
+    numOfRows: '50',    // 하루치 충분히
+  });
+
+  const url = `${KHOA_TEMP_BASE}/GetSurveyWaterTempApiService?${params.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('수온 HTTP ' + res.status);
+  const text = await res.text();
+  if (text.trim().startsWith('<')) {
+    throw new Error('수온 XML 에러: ' + text.substring(0, 150));
+  }
+
+  let json;
+  try { json = JSON.parse(text); }
+  catch { throw new Error('수온 JSON 파싱 실패: ' + text.substring(0, 150)); }
+
+  // 디버그: 첫 호출 응답 구조 콘솔에 한 번 출력
+  if (!window.__waterTempDebugged) {
+    window.__waterTempDebugged = true;
+    console.log(`[수온 디버그 ${stationCode}] 응답 구조:`, json);
+  }
+
+  const header = json?.response?.header;
+  // 정상 코드: 0 또는 00 (명세상 0이지만 다른 API와 호환을 위해 둘 다 허용)
+  if (header && header.resultCode !== '0' && header.resultCode !== '00') {
+    if (header.resultCode === '3') {
+      console.log(`[수온 ${stationCode}] 데이터 없음 (NODATA)`);
+      return null;
+    }
+    throw new Error(`수온 [${header.resultCode}] ${header.resultMsg}`);
+  }
+
+  // items 위치 — 명세는 response.body.items.item 이지만 실제는 다를 수 있음
+  let items = json?.response?.body?.items?.item
+           ?? json?.response?.body?.items
+           ?? json?.body?.items?.item
+           ?? json?.body?.items
+           ?? [];
+
+  const arr = Array.isArray(items) ? items : [items].filter(Boolean);
+  if (arr.length === 0) {
+    console.log(`[수온 ${stationCode}] items 비어있음. 응답:`, json);
+    return null;
+  }
+
+  // obsrvnDt 기준으로 정렬해서 가장 최근 값
+  arr.sort((a, b) => String(a.obsrvnDt || '').localeCompare(String(b.obsrvnDt || '')));
+  const last = arr[arr.length - 1];
+
+  // wtem 또는 다른 필드명 시도
+  const v = parseFloat(last.wtem ?? last.WTEM ?? last.water_temp ?? last.tw);
+  if (isNaN(v)) {
+    console.log(`[수온 ${stationCode}] 파싱 실패. last item:`, last);
+    return null;
+  }
+  console.log(`[수온 ${stationCode}] ✓ ${v}°C (${last.obsrvnDt})`);
+  return v;
+}
+
+/* ==========================================================================
+   특보 (기상청 기상특보)
+   - getWthrWrnList: 발효 중인 특보 목록
+   ========================================================================== */
+async function fetchActiveAlerts() {
+  // 현재 시각 기준 최근 12시간 내 발효된 특보
+  const now = new Date();
+  const past = new Date(now.getTime() - 12*60*60*1000);
+  const fmt = (d) => `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+
+  const params = new URLSearchParams({
+    serviceKey: KMA_KEY,
+    pageNo: '1',
+    numOfRows: '50',
+    dataType: 'JSON',
+    fromTmFc: fmt(past),
+    toTmFc: fmt(now),
+  });
+
+  const url = `${KMA_ALERT_BASE}/getWthrWrnList?${params.toString()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('특보 HTTP ' + res.status);
+  const text = await res.text();
+  if (text.trim().startsWith('<')) {
+    throw new Error('특보 XML 에러: ' + text.substring(0, 150));
+  }
+  const json = JSON.parse(text);
+  const header = json?.response?.header;
+  if (header?.resultCode !== '00') {
+    // 특보 없을 때도 03 으로 와서 정상 처리
+    if (header?.resultCode === '03') return [];
+    throw new Error(`특보 [${header?.resultCode}] ${header?.resultMsg}`);
+  }
+  const items = json?.response?.body?.items?.item || [];
+  return Array.isArray(items) ? items : [items];
+}
+
+/* 지역명에 매칭되는 특보 찾기 */
+function findAlertForSpot(spotId, allAlerts) {
+  const region = ALERT_REGIONS[spotId];
+  if (!region || !allAlerts || allAlerts.length === 0) return null;
+
+  // title 또는 t6, t7 같은 본문에서 지역명 매칭
+  for (const a of allAlerts) {
+    const text = `${a.title || ''} ${a.t6 || ''} ${a.t7 || ''} ${a.cmd || ''}`;
+    if (text.includes(region) || (region.length > 2 && text.includes(region.substring(0,2)))) {
+      // 특보 유형 추출 (title 에서)
+      const t = a.title || a.t6 || '특보 발효 중';
+      return t.length > 40 ? t.substring(0,40) + '…' : t;
+    }
+  }
+  return null;
+}
+
+/* ==========================================================================
+   원시 API 데이터 → 우리 화면 포맷으로 변환
+   ========================================================================== */
+function windDirText(deg) {
+  if (deg == null || isNaN(deg)) return '-';
+  const dirs = ['북','북북동','북동','동북동','동','동남동','남동','남남동',
+                '남','남남서','남서','서남서','서','서북서','북서','북북서'];
+  const idx = Math.floor((deg + 11.25) / 22.5) % 16;
+  return dirs[idx];
+}
+
+function ptyToCondition(pty, sky, t1h) {
+  // PTY: 0 없음, 1 비, 2 비/눈, 3 눈, 5 빗방울, 6 빗방울눈날림, 7 눈날림
+  if (pty === 1 || pty === 5) return '비';
+  if (pty === 2 || pty === 6) return '비 또는 눈';
+  if (pty === 3 || pty === 7) return '눈';
+  // SKY: 1 맑음, 3 구름많음, 4 흐림
+  if (sky === 4) return '흐림';
+  if (sky === 3) return '구름많음';
+  if (sky === 1) return '맑음';
+  // SKY 없을 때 기온으로 폴백
+  if (t1h != null) {
+    if (t1h >= 28) return '맑음 · 더움';
+    if (t1h <= 0)  return '맑음 · 추움';
+  }
+  return '맑음';
+}
+
+function buildLiveData(spot, ncst, vfcst, waterTemp, alertText) {
+  const t1h = ncst.T1H;        // 기온
+  const reh = ncst.REH;        // 습도
+  const wsd = ncst.WSD;        // 풍속
+  const vec = ncst.VEC;        // 풍향
+  const pty = ncst.PTY;        // 강수형태
+
+  const sky = vfcst?.SKY;      // 하늘상태 (단기예보)
+  const wav = vfcst?.WAV;      // 파고 (단기예보, 해안만 의미있음)
+
+  const cond = ptyToCondition(pty, sky, t1h);
+  const wind = `${windDirText(vec)} ${wsd != null ? wsd.toFixed(1) : '-'}`;
+
+  // 파고 — 단기예보 WAV. 내륙은 없거나 의미없음
+  const wave = (spot.kind === 'sea' && wav != null && wav >= 0) ? wav : null;
+
+  // 어종 적합도 — 수온이 있으면 수온 기준, 없으면 기온
+  let fish = [];
+  if (spot.kind === 'sea') {
+    fish = scoreFish(spot, waterTemp ?? t1h, wsd, pty, wave);
+  }
+
+  // 특보: API 결과 우선, 없으면 풍속/파고 기반 간이 판정
+  let alert = alertText;
+  if (!alert) {
+    if (wsd != null && wsd >= 14)      alert = '강풍 매우 강함 (출조 자제)';
+    else if (wave != null && wave >= 3) alert = '파고 높음 (출조 자제)';
+    else if (wsd != null && wsd >= 10) alert = '강풍 주의';
+  }
+
+  return {
+    temp: t1h ?? 0,
+    cond,
+    wind,
+    wave,
+    water: waterTemp,
+    hum: reh ?? 0,
+    pressure: 1013,
+    alert,
+    fish,
+    _live: true,
+  };
+}
+
+/* ==========================================================================
+   어종 적합도 룰 엔진
+   ========================================================================== */
+function scoreFish(spot, waterOrAirTemp, wind, pty, wave) {
+  // 수온이 있으면 그대로, 없으면 기온 사용 (수온이 좀 더 낮은 경향이라)
+  const t = waterOrAirTemp ?? 14;
+  const w = wind ?? 0;
+  const wv = wave ?? 0;
+  const isRain = pty && pty !== 0;
+
+  // 어종별 최적 수온 범위 + 파고/바람 영향
+  function score(idealMin, idealMax, maxWind, maxWave) {
+    let s = 5;
+    // 수온 거리
+    if (t < idealMin) s -= Math.min(3, (idealMin - t) / 2);
+    if (t > idealMax) s -= Math.min(3, (t - idealMax) / 2);
+    // 바람
+    if (w > maxWind) s -= Math.min(2, (w - maxWind) / 2);
+    // 파고
+    if (wv > maxWave) s -= Math.min(2, (wv - maxWave));
+    // 비
+    if (isRain) s -= 1;
+    return Math.max(1, Math.min(5, Math.round(s)));
+  }
+
+  const rules = [
+    { key:'flounder', score: score(15, 20, 7, 2),
+      note: wv >= 2 ? '파고 주의' : (w >= 7 ? '바람 강함' : '들물 시각 ★') },
+    { key:'rockfish', score: score(8, 18, 8, 2.5),
+      note: '연안 갯바위' },
+    { key:'hairtail', score: score(18, 24, 6, 1.5),
+      note: '야간 권장' },
+    { key:'squid',    score: score(14, 22, 7, 2),
+      note: '야간' },
+    { key:'bream',    score: score(14, 22, 6, 1.5),
+      note: spot.id === 'busan' || spot.id === 'tongyeong' ? '호황 시즌' : '' },
+  ];
+
+  rules.sort((a,b) => b.score - a.score);
+  return rules.slice(0,3).map(r => [r.key, r.score, r.note]);
+}
+
+/* ==========================================================================
+   여러 지점 병렬 호출
+   ========================================================================== */
+async function fetchAllLive() {
+  const btn = document.getElementById('liveBtn');
+  const status = document.getElementById('status');
+
+  btn.classList.remove('success','error');
+  btn.classList.add('loading');
+  btn.textContent = '⟳ 받는 중...';
+
+  let ok = 0, fail = 0;
+  const errors = [];
+
+  // 1) 특보는 전국 한 번만 호출
+  let allAlerts = [];
+  try {
+    allAlerts = await fetchActiveAlerts();
+    console.log(`[특보] ${allAlerts.length}건 조회됨`);
+  } catch (e) {
+    console.warn('특보 API 실패:', e.message);
+    // 특보 실패해도 나머지는 진행
+  }
+
+  // 2) 각 지점마다 실황(필수) + 단기예보(파고) + 수온 병렬 호출
+  const tasks = SPOTS.map(async (spot) => {
+    try {
+      // 실황은 필수 — 실패 시 그 지점은 fail
+      const ncstPromise = fetchUltraSrtNcst(spot.lat, spot.lon);
+
+      // 단기예보 (파고/하늘) — 실패 허용
+      const vfcstPromise = fetchVilageFcst(spot.lat, spot.lon)
+        .catch(e => { console.warn(`[${spot.id}] 단기예보 실패:`, e.message); return null; });
+
+      // 수온 — 해상 + 코드 매핑 있는 곳만
+      const stationCode = spot.kind === 'sea' ? TIDE_STATION[spot.id] : null;
+      const waterPromise = stationCode
+        ? fetchWaterTemp(stationCode).catch(e => {
+            console.warn(`[${spot.id}] 수온 실패 (${stationCode}):`, e.message);
+            return null;
+          })
+        : Promise.resolve(null);
+
+      const [ncst, vfcst, water] = await Promise.all([ncstPromise, vfcstPromise, waterPromise]);
+      const alertText = findAlertForSpot(spot.id, allAlerts);
+
+      LIVE[spot.id] = buildLiveData(spot, ncst, vfcst, water, alertText);
+      LIVE_OK[spot.id] = true;
+      document.querySelectorAll(`.spot[data-id="${spot.id}"]`).forEach(el => el.classList.add('live'));
+      ok++;
+    } catch (e) {
+      LIVE_OK[spot.id] = false;
+      errors.push(`${spot.name}: ${e.message}`);
+      fail++;
+    }
+  });
+
+  await Promise.all(tasks);
+
+  btn.classList.remove('loading');
+  if (ok > 0 && fail === 0) {
+    btn.classList.add('success');
+    btn.textContent = `✓ 실시간 ${ok}곳 갱신됨`;
+    const alertCount = allAlerts.length;
+    status.textContent = `LIVE · 실황+예보+수온${alertCount ? `+특보 ${alertCount}건` : ''} · ${new Date().toLocaleTimeString('ko-KR')}`;
+  } else if (ok > 0) {
+    btn.classList.add('success');
+    btn.textContent = `△ ${ok}곳 성공 / ${fail}곳 실패`;
+    status.textContent = `MIXED · ${ok}곳 실시간`;
+  } else {
+    btn.classList.add('error');
+    btn.textContent = `✗ 실패 (${fail}곳)`;
+    status.textContent = `ERROR · ${errors[0] || '알 수 없는 에러'}`;
+    console.error('API 호출 실패:', errors);
+    alert('API 호출 실패\n\n' + errors.slice(0,3).join('\n\n') +
+          '\n\n자세한 내용은 브라우저 콘솔(F12)을 확인하세요.');
+  }
+
+  // 현재 선택된 지점 다시 그리기
+  const active = document.querySelector('.spot.active');
+  if (active) selectSpot(active.dataset.id);
+}
+
+/* ==========================================================================
+   지도 점 그리기
+   ========================================================================== */
+const spotsLayer = document.getElementById('spots');
+const pulseLayer = document.getElementById('pulselayer');
+
+SPOTS.forEach((s) => {
+  const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.classList.add('spot');
+  g.classList.add(s.kind);
+  g.dataset.id = s.id;
+
+  const outer = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  outer.setAttribute('cx', s.x);
+  outer.setAttribute('cy', s.y);
+  outer.setAttribute('r', 10);
+  outer.setAttribute('fill', s.kind === 'sea' ? '#0e7c7b' : '#b8860b');
+  outer.setAttribute('fill-opacity', '0.4');
+  outer.classList.add('spot-outer');
+
+  const inner = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  inner.setAttribute('cx', s.x);
+  inner.setAttribute('cy', s.y);
+  inner.setAttribute('r', 4);
+  inner.setAttribute('fill', s.kind === 'sea' ? '#0e7c7b' : '#8b6508');
+  inner.classList.add('spot-inner');
+
+  const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  const onRight = s.x > 260;
+  label.setAttribute('x', onRight ? s.x + 14 : s.x - 14);
+  label.setAttribute('y', s.y + 4);
+  label.setAttribute('text-anchor', onRight ? 'start' : 'end');
+  label.textContent = s.name;
+
+  g.appendChild(outer);
+  g.appendChild(inner);
+  g.appendChild(label);
+  g.addEventListener('click', () => selectSpot(s.id));
+  spotsLayer.appendChild(g);
+});
+
+/* ==========================================================================
+   상세 패널 렌더링
+   ========================================================================== */
+const detailEl = document.getElementById('detail');
+const latlonEl = document.getElementById('latlon');
+const dateEl   = document.getElementById('dateline');
+
+function fmtDate(d){
+  const days=['일','월','화','수','목','금','토'];
+  return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 (${days[d.getDay()]}) ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function stars(n){
+  let h='';
+  for(let i=0;i<5;i++){
+    h += i<n ? '<span class="filled">★</span>' : '<span class="empty">★</span>';
+  }
+  return h;
+}
+
+function tideSvg(){
+  const phase = Math.random()*Math.PI*2;
+  let path = 'M0,30';
+  for(let i=0;i<=200;i++){
+    const x = i*1.5;
+    const y = 30 - Math.sin((i/200)*Math.PI*2 + phase) * 22;
+    path += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+  }
+  return `
+    <svg class="tide-svg" viewBox="0 0 300 60" preserveAspectRatio="none">
+      <path class="tide-wave" d="${path}" fill="none" stroke="#0d4f8b" stroke-width="1.6"/>
+      <path d="${path} L300,60 L0,60 Z" fill="#0d4f8b" opacity="0.12"/>
+    </svg>`;
+}
+
+function selectSpot(id){
+  document.querySelectorAll('.spot').forEach(el =>
+    el.classList.toggle('active', el.dataset.id === id));
+
+  const s = SPOTS.find(x => x.id === id);
+  // 실시간 데이터 있으면 그거, 없으면 샘플
+  const isLive = !!LIVE_OK[id];
+  const d = isLive ? LIVE[id] : SAMPLE[id];
+
+  pulseLayer.innerHTML = '';
+  const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  ring.setAttribute('cx', s.x);
+  ring.setAttribute('cy', s.y);
+  ring.setAttribute('r', 6);
+  ring.setAttribute('fill', 'none');
+  ring.setAttribute('stroke', '#c2410c');
+  ring.setAttribute('stroke-width', '1.4');
+  ring.classList.add('pulse-ring');
+  pulseLayer.appendChild(ring);
+
+  latlonEl.textContent = `${s.lat.toFixed(2)}°N · ${s.lon.toFixed(2)}°E`;
+  dateEl.textContent   = fmtDate(new Date());
+
+  let alertHtml = d.alert
+    ? `<div class="alert"><span class="alert-icon">⚠ ALERT</span><span>${d.alert}</span></div>`
+    : `<div class="alert calm"><span class="alert-icon">✓ CLEAR</span><span>특보 없음 · 출조 가능</span></div>`;
+
+  let fishHtml = '';
+  if (s.kind === 'sea' && d.fish && d.fish.length) {
+    fishHtml = `
+      <div class="fishing-section">
+        <div class="section-title">오늘의 어종 적합도</div>
+        <div class="section-sub">SPECIES SUITABILITY · BY ENV. RULES</div>
+        <ul class="fish-list">
+          ${d.fish.map(([key, score, note], i) => {
+            const f = FISH[key];
+            return `
+              <li class="fish-row">
+                <span class="fish-num">${String(i+1).padStart(2,'0')}</span>
+                <div class="fish-name">${f.name}<span class="latin">${f.latin}</span></div>
+                <div class="fish-rating">${stars(score)}</div>
+                <div class="fish-note">${note || ''}</div>
+              </li>`;
+          }).join('')}
+        </ul>
+      </div>
+      <div class="tide">
+        <div class="tide-header">
+          <div class="tide-title">물때 · 조위 변화</div>
+          <div class="tide-phase">7물 · 들물</div>
+        </div>
+        ${tideSvg()}
+        <div class="tide-times">
+          <span>00:00</span><span>06:00</span><span>12:00</span><span>18:00</span><span>24:00</span>
+        </div>
+      </div>`;
+  } else if (s.kind === 'inland') {
+    fishHtml = `
+      <div class="fishing-section">
+        <div class="section-title">내륙 지점</div>
+        <div class="section-sub">INLAND · NO MARINE DATA</div>
+        <p style="font-family:'Pretendard',sans-serif;color:var(--text-mid);font-size:15px;line-height:1.6;margin-top:8px;font-weight:500;">
+          이 지점은 내륙 관측소로, 해양 어종 적합도는 산출하지 않습니다.<br>
+          기상 정보 위주로 표시됩니다.
+        </p>
+      </div>`;
+  }
+
+  // 해양/내륙 분기
+  const marineRow = (s.kind === 'sea')
+    ? `
+      <div class="stat">
+        <span class="stat-label">WAVE 파고</span>
+        <span class="stat-value">${d.wave != null ? d.wave.toFixed(1) : '-'}<span class="unit">m</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">SST 수온</span>
+        <span class="stat-value">${d.water != null ? d.water.toFixed(1) : '-'}<span class="unit">°C</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">HUMID 습도</span>
+        <span class="stat-value">${d.hum}<span class="unit">%</span></span>
+      </div>`
+    : `
+      <div class="stat">
+        <span class="stat-label">HUMID 습도</span>
+        <span class="stat-value">${d.hum}<span class="unit">%</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">PRES 기압</span>
+        <span class="stat-value">${d.pressure}<span class="unit">hPa</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">SKY 하늘</span>
+        <span class="stat-value">${d.cond.split(' ')[0]}</span>
+      </div>`;
+
+  const dataTag = isLive
+    ? `<span class="spot-tag live">⟳ LIVE</span>`
+    : `<span class="spot-tag sample">SAMPLE</span>`;
+
+  detailEl.innerHTML = `
+    <div class="spot-header">
+      <div class="spot-region">${s.region}</div>
+      <div class="spot-name">${s.name}</div>
+      <span class="spot-tag">${s.tag}</span>
+      ${dataTag}
+    </div>
+    ${alertHtml}
+    <div class="weather-block">
+      <div>
+        <div class="temp-big">${d.temp.toFixed(1)}<sup>°C</sup></div>
+        <div class="condition">${d.cond}</div>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-label">WIND 풍향풍속</span>
+          <span class="stat-value">${d.wind}<span class="unit">m/s</span></span>
+        </div>
+        ${marineRow}
+      </div>
+    </div>
+    ${fishHtml}
+  `;
+
+  detailEl.querySelectorAll('*').forEach(el => {
+    el.style.animation = 'none';
+    el.offsetHeight;
+    el.style.animation = '';
+  });
+}
+
+/* ==========================================================================
+   시작 — 자동으로 실시간 데이터 받기
+   ========================================================================== */
+selectSpot('busan');
+
+// 페이지 열자마자 자동 호출 (1초 후 — 화면 먼저 그리고)
+setTimeout(() => {
+  fetchAllLive();
+}, 800);
+
+// 10분마다 자동 갱신
+setInterval(fetchAllLive, 10 * 60 * 1000);
+</script>
+
+</body>
+</html>
